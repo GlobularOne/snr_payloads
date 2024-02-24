@@ -1,0 +1,39 @@
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Build
+dist/
+build
+sdist/
+wheels/
+*.egg
+*.egg-info/
+
+# Documentation
+docs/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Temporary stuff
+*.bak
+*.tmp
+*.log
+*.swp
+
+# C build atrifacts
+*.o
+*.efi
+
+# Generated payload set
+*.tar.gz
+
+# Visual Studio Code
+.vscode/
