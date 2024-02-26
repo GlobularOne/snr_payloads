@@ -8,10 +8,9 @@ To add a user named myuser with password, mypassword:
     set PAIRS myuser:mypassword
 
 """
+from libsnr.util.common_utils import print_error, rootfs_open
 from libsnr.util.payloads.autorun import Autorun
 from snr.variables import global_vars
-from libsnr.util.common_utils import print_error, rootfs_open
-
 
 LICENSE = "Apache-2.0"
 AUTHORS = ["GlobularOne"]
@@ -20,10 +19,9 @@ INPUTS = (
 )
 
 PAYLOAD = r"""#!/usr/bin/python3
-
 import os
 
-from libsnr.util.common_utils import print_warning
+from libsnr.util.common_utils import print_info, print_ok, print_warning, print_error
 from libsnr.util.programs.mount import Mount
 from libsnr.util.programs.umount import Umount
 from libsnr.util.chroot_program_wrapper import ChrootProgramWrapper, PIPE
@@ -85,14 +83,15 @@ def main():
     our_device = get_partition_root(root_context["device"], block_info)
     if our_device is None:
         print_error("Finding partition root device for / failed")
-        return 
+        return
     for part in query_all_partitions(block_info):
         if get_partition_root(part, block_info) == our_device:
             continue
         # Try to mount it and see if it sounds like something like unix
         errorcode = Mount().invoke_and_wait(None, part, FS_MOUNTPOINT)
         if errorcode != 0:
-            print_error(f"Failed to mount partition '{part}'! Skipping partition")
+            print_error(
+                f"Failed to mount partition '{part}'! Skipping partition")
             continue
         if os.path.exists(f"/{FS_MOUNTPOINT}/usr/sbin/init") or os.path.exists(f"/{FS_MOUNTPOINT}/usr/bin/init"):
             data_mkdir(part.replace("/", ".")[1:])
@@ -126,7 +125,8 @@ def main():
                         errorcode = ChrootProgramWrapper(
                             context, "deluser", stdout=PIPE).invoke_and_wait(None, username)
                         if errorcode != 0:
-                            print_warning(f"Deleting user '{username}' failed!")
+                            print_warning(
+                                f"Deleting user '{username}' failed!")
                 else:
                     print_info(f"Adding user '{username}'")
                     adduser = ChrootProgramWrapper(
@@ -146,7 +146,8 @@ def main():
                     if len(user) == 0:
                         continue
                 print_info("Changing password of '{user}'")
-                chpasswd = ChrootProgramWrapper(context, "chpasswd", stdin=PIPE)
+                chpasswd = ChrootProgramWrapper(
+                    context, "chpasswd", stdin=PIPE)
                 chpasswd.invoke()
                 chpasswd.stdin.write(f"{user}:{password}\n".encode())
                 chpasswd.stdin.close()
@@ -212,7 +213,7 @@ def main():
                 else:
                     print_info(f"Adding group '{group_name}'")
                     errorcode = ChrootProgramWrapper(
-                                                     context, "addgroup", stdout=PIPE).invoke_and_wait(None, group_name)
+                        context, "addgroup", stdout=PIPE).invoke_and_wait(None, group_name)
                     if errorcode != 0:
                         print_warning(f"Adding group '{group_name}' failed!")
             # ADD_TO
@@ -255,7 +256,12 @@ def main():
 
         Umount().invoke_and_wait(None, FS_MOUNTPOINT)
     print_ok("Unix_user_management payload completed")
+
+
+if __name__ == "__main__":
+    main()
 """
+
 
 def load():
     global_vars.set_variable(
@@ -274,9 +280,11 @@ def load():
         "UNLOCK", [], -1, "List of users to unlock, -<USERNAME> will lock it instead")
     return 0
 
+
 def unload():
     for inp in INPUTS:
         global_vars.del_variable(inp)
+
 
 def generate(context: dict):
     for inp in INPUTS:

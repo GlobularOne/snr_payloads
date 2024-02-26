@@ -12,13 +12,16 @@ INPUTS = (
     "COMMAND",
 )
 
+
 def load():
     global_vars.set_variable("COMMAND", "", info_description="Command to run")
     return 0
 
+
 def unload():
     for inp in INPUTS:
         global_vars.del_variable(inp)
+
 
 def generate(context: dict):
     command = global_vars.get_variable("COMMAND")

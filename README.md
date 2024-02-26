@@ -9,4 +9,3 @@ You can always send an email to me. I am available as `GlobularOne@proton.me`
 ## License
 
 Apache Software License 2.0. See the [LICENSE](https://github.com/GlobularOne/snr_payloads/blob/main/LICENSE) file for more information.
-

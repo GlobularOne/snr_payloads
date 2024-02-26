@@ -5,6 +5,7 @@ It should be executed as an executable using run_executable payload
 """
 import shutil
 import time
+
 from libsnr.payload.safety_pin import require_lack_of_safety_pin
 
 LICENSE = "Apache-2.0"

@@ -7,20 +7,24 @@ Mode A: Overwrite partition table and filesystem headers.
 Mode B: Overwrite the partition table and filesystem headers then write 0 to every single byte.
         Software recovery: Not possible
         Hardware recovery: Possible with the right equipment
-Mode C: Overwrite the partition table and filesystem headers then write 0, and then 0xFF to every single byte.
+Mode C: Overwrite the partition table and filesystem headers then write 0, and then
+        0xFF to every single byte.
         Software recovery: Not possible
         Hardware recovery: Possible with the right equipment, considerable recovery rate
-Mode D: Overwrite the partition table and filesystem headers then write 0, and then 0xFF, and then a random value to every single byte.
+Mode D: Overwrite the partition table and filesystem headers then write 0, and then 0xFF, and 
+        then a random value to every single byte.
         Software recovery: Not possible
         Hardware recovery: Possible with the right equipment, low recovery rate
-Mode E: Overwrite the partition table and filesystem headers then write 0, and then 0xFF, and then 5 passes of random values to every single byte.
+Mode E: Overwrite the partition table and filesystem headers then write 0, and then 0xFF, and 
+        then 5 passes of random values to every single byte.
         Software recovery: Not possible
-        Hardware recovery: Almost impossible to get much with the right equipment, however still very little parts may be recoverable
+        Hardware recovery: Almost impossible to get much with the right equipment, however 
+                           still very little parts may be recoverable
 """
 
+from libsnr.util.common_utils import print_error, rootfs_open
 from libsnr.util.payloads.autorun import Autorun
 from snr.variables import global_vars
-from libsnr.util.common_utils import print_error, rootfs_open
 
 LICENSE = "Apache-2.0"
 AUTHORS = ["GlobularOne"]
@@ -29,7 +33,6 @@ INPUTS = (
 )
 
 PAYLOAD = r"""#!/usr/bin/python3
-
 import random
 from libsnr.payload.safety_pin import require_lack_of_safety_pin
 from libsnr.util.common_utils import print_info, print_ok, print_error
@@ -38,6 +41,7 @@ from libsnr.payload.context import create_context_for_mountpoint
 
 
 WIPE_MODE = "@WIPE_MODE@"
+
 
 def pass_zero(path: str, kbs: int):
     with open(path, "wb") as stream:
@@ -108,6 +112,7 @@ if __name__ == "__main__":
     main()
 """
 
+
 def load():
     global_vars.set_variable(
         "WIPE_MODE", "A", 1, "Wipe mode, must be one of A, B, C, D and E")
@@ -126,7 +131,7 @@ def generate(context: dict):
         return 1
     payload = PAYLOAD
     with rootfs_open(context, "root/wipe.py", "w") as stream:
-        payload = payload.replace(f"@WIPE_MODE@", wipe_mode)
+        payload = payload.replace("@WIPE_MODE@", wipe_mode)
         stream.write(payload)
     autorun = Autorun(context)
     autorun.add_executable("python3 /root/wipe.py", "snr_payload")

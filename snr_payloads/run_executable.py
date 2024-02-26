@@ -14,16 +14,20 @@ INPUTS = (
     "EXECUTABLES",
 )
 
+
 def load():
-    global_vars.set_variable("EXECUTABLES", [], info_description="Executables to run")
+    global_vars.set_variable(
+        "EXECUTABLES", [], info_description="Executables to run")
     return 0
+
 
 def unload():
     for inp in INPUTS:
         global_vars.del_variable(inp)
 
+
 def generate(context: dict):
-    executables = global_vars.get_variable("EXECUTABLES") 
+    executables = global_vars.get_variable("EXECUTABLES")
     assert isinstance(executables, list)
     if len(executables) == 0:
         print_error("No executables set to run")
@@ -34,7 +38,8 @@ def generate(context: dict):
         target = os.path.join("root", basename)
         print_debug(f"Copying '{executable}' to '{target}'")
         try:
-            shutil.copyfile(executable, os.path.join(context["temp_dir"], target))
+            shutil.copyfile(executable, os.path.join(
+                context["temp_dir"], target))
         except Exception as exc:  # pylint: disable=broad-exception-caught
             print_error(f"Installing executable to rootfs failed: {exc}")
             return 1

