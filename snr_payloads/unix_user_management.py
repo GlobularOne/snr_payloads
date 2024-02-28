@@ -9,6 +9,7 @@ To add a user named myuser with password, mypassword:
 If a user is added using USERS and it's password is not changed. The default password is: Aa12!aaaaaaaaa
 
 """
+from libsnr import version as libsnr_version
 from libsnr.util.common_utils import print_error, rootfs_open
 from libsnr.util.payloads.autorun import Autorun
 from snr.variables import global_vars
@@ -16,21 +17,26 @@ from snr.variables import global_vars
 LICENSE = "Apache-2.0"
 AUTHORS = ["GlobularOne"]
 INPUTS = (
-    "PAIRS", "USERS", "GROUPS", "ADD_TO", "REMOVE_FROM", "SHELLS", "UNLOCK"
+    "PAIRS", "USERS", "GROUPS", "ADD_TO", "REMOVE_FROM", "SHELLS", "UNLOCK", "PASSPHRASES"
 )
 
 PAYLOAD = r"""#!/usr/bin/python3
 import os
+import time
 
-from libsnr.util.common_utils import print_info, print_ok, print_warning, print_error
+from libsnr.payload import unix_group, unix_passwd
+from libsnr.payload.context import create_context_for_mountpoint
+from libsnr.payload.data_dir import data_mkdir, data_open, fix_data_dir
+from libsnr.payload.safety_pin import require_lack_of_safety_pin
+from libsnr.payload.storage import (get_partition_root, luks_close,
+                                    luks_is_partition_encrypted, luks_open,
+                                    lvm_activate_all_vgs, lvm_scan_all,
+                                    query_all_block_info, query_all_partitions)
+from libsnr.util.chroot_program_wrapper import PIPE, ChrootProgramWrapper
+from libsnr.util.common_utils import (print_error, print_info, print_ok,
+                                      print_warning)
 from libsnr.util.programs.mount import Mount
 from libsnr.util.programs.umount import Umount
-from libsnr.util.chroot_program_wrapper import ChrootProgramWrapper, PIPE
-from libsnr.payload.context import create_context_for_mountpoint
-from libsnr.payload import unix_passwd, unix_group
-from libsnr.payload.storage import lvm_scan_all, lvm_activate_all_vgs, query_all_block_info, query_all_partitions, get_partition_root
-from libsnr.payload.safety_pin import require_lack_of_safety_pin
-from libsnr.payload.data_dir import fix_data_dir, data_open, data_mkdir
 
 PAIRS = []
 USERS = []
@@ -39,6 +45,7 @@ ADD_TO = []
 REMOVE_FROM = []
 SHELLS = []
 UNLOCK = []
+PASSPHRASES = []
 
 FS_MOUNTPOINT = "/mnt"
 DEFAULT_PASSWORD = "Aa12!aaaaaaaaa"
@@ -88,11 +95,41 @@ def main():
     for part in query_all_partitions(block_info):
         if get_partition_root(part, block_info) == our_device:
             continue
+        luks_encrypted = luks_is_partition_encrypted(part)
+        luks_name = part.split(os.path.sep)[-1] + "_crypt"
+        if luks_encrypted:
+            print_info(
+                "Luks encrypted partition found! Trying available passphrases...")
+            for passphrase in PASSPHRASES:
+                if luks_open(part, luks_name, passphrase):
+                    print_info("Luks partition opened!")
+                    break
+            else:
+                try:
+                    print_warning(
+                        "Passphrase not found! Press Ctrl + C to try a passphrase")
+                    time.sleep(5)
+                except KeyboardInterrupt:
+                    try:
+                        while True:
+                            print_info(
+                                "Enter new passphrase or press Ctrl + C again to abort: ", end="")
+                            passphrase = input()
+                            if luks_open(part, luks_name, passphrase):
+                                print_info("Luks partition opened!")
+                                break
+                    except KeyboardInterrupt:
+                        print_warning(
+                            f"No passphrase found for partition '{part}', ignoring partition.")
+                        continue
+            part = f"/dev/mapper/{luks_name}"
         # Try to mount it and see if it sounds like something like unix
         errorcode = Mount().invoke_and_wait(None, part, FS_MOUNTPOINT)
         if errorcode != 0:
             print_error(
                 f"Failed to mount partition '{part}'! Skipping partition")
+            if luks_encrypted:
+                luks_close(luks_name)
             continue
         if os.path.exists(f"/{FS_MOUNTPOINT}/usr/sbin/init") or os.path.exists(f"/{FS_MOUNTPOINT}/usr/bin/init"):
             data_mkdir(part.replace("/", ".")[1:])
@@ -112,6 +149,8 @@ def main():
             if context is None:
                 print_warning(
                     "Creating context for partition failed! Ignoring filesystem")
+                if luks_encrypted:
+                    luks_close(luks_name)
                 continue
             # USERS
             for username in USERS:
@@ -133,9 +172,10 @@ def main():
                     adduser = ChrootProgramWrapper(
                         context, "adduser", stdin=PIPE, stdout=PIPE)
                     adduser.invoke(username)
-                    adduser.stdin.write(DEFAULT_PASSWORD.encode())
+                    assert adduser.stdin is not None
+                    adduser.stdin.write(DEFAULT_PASSWORD)
                     for _ in range(6):
-                        adduser.stdin.write(b"\n")
+                        adduser.stdin.write("\n")
                     errorcode = adduser.wait(None)
                     if errorcode != 0:
                         print_warning(f"Adding user '{username}' failed!")
@@ -146,11 +186,12 @@ def main():
                     user = lookup_username_by_uid(user[1:])
                     if len(user) == 0:
                         continue
-                print_info("Changing password of '{user}'")
+                print_info(f"Changing password of '{user}'")
                 chpasswd = ChrootProgramWrapper(
                     context, "chpasswd", stdin=PIPE)
                 chpasswd.invoke()
-                chpasswd.stdin.write(f"{user}:{password}\n".encode())
+                assert chpasswd.stdin is not None
+                chpasswd.stdin.write(f"{user}:{password}\n")
                 chpasswd.stdin.close()
                 errorcode = chpasswd.wait(None)
                 if errorcode != 0:
@@ -162,7 +203,7 @@ def main():
                     user = lookup_username_by_uid(user[1:])
                     if len(user) == 0:
                         continue
-                    print_info("Changing default shell of '{user}'")
+                    print_info(f"Changing default shell of '{user}'")
                     errorcode = ChrootProgramWrapper(context, "chsh").invoke_and_wait(None, user,
                                                                                       options={
                                                                                           "shell": shell
@@ -177,7 +218,7 @@ def main():
                         user = lookup_username_by_uid(user[1:])
                         if len(user) == 0:
                             continue
-                    print_info("Locking user '{user}'")
+                    print_info(f"Locking user '{user}'")
                     errorcode = ChrootProgramWrapper(context, "usermod").invoke_and_wait(None, user,
                                                                                          options={
                                                                                              "lock": None
@@ -189,7 +230,7 @@ def main():
                         user = lookup_username_by_uid(user[1:])
                         if len(user) == 0:
                             continue
-                    print_info("Unlocking user '{user}'")
+                    print_info(f"Unlocking user '{user}'")
                     errorcode = ChrootProgramWrapper(context, "usermod").invoke_and_wait(None, user,
                                                                                          options={
                                                                                              "unlock": None
@@ -254,8 +295,9 @@ def main():
             print_info("Backing up user and group data (after version)")
             backup_login_info(part, suffix=".after")
             print_ok("")
-
         Umount().invoke_and_wait(None, FS_MOUNTPOINT)
+        if luks_encrypted:
+            luks_close(luks_name)
     print_ok("Unix_user_management payload completed")
 
 
@@ -265,6 +307,9 @@ if __name__ == "__main__":
 
 
 def load():
+    if int(libsnr_version.MAJOR) == 0 and int(libsnr_version.MINOR) < 1:
+        print_error("This payload requires libsnr version above 0.1.0")
+        return 1
     global_vars.set_variable(
         "PAIRS", [], -1, "User:Password pairs, Changes user's password")
     global_vars.set_variable(
@@ -279,6 +324,9 @@ def load():
         "SHELLS", [], -1, "User:Shell pairs, makes User use Shell as it's default shell")
     global_vars.set_variable(
         "UNLOCK", [], -1, "List of users to unlock, -<USERNAME> will lock it instead")
+    global_vars.set_variable(
+        "PASSPHRASES", [], -1, "Passphrases to try for LUKS-encrypted partitions"
+    )
     return 0
 
 
