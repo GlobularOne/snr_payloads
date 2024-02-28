@@ -6,6 +6,7 @@ Example:
 To add a user named myuser with password, mypassword:
     set USERS myuser
     set PAIRS myuser:mypassword
+If a user is added using USERS and it's password is not changed. The default password is: Aa12!aaaaaaaaa
 
 """
 from libsnr.util.common_utils import print_error, rootfs_open
