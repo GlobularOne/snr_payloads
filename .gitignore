@@ -31,6 +31,7 @@ venv.bak/
 # C build atrifacts
 *.o
 *.efi
+*.bin
 
 # Generated payload set
 *.tar.gz
