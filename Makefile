@@ -1,6 +1,6 @@
 all: build archive
 
-build: src/efi_disk_encryption_message.efi
+build: src/efi_disk_encryption_message.efi src/bios_disk_encryption_message.bin
 
 src/uefi:
 	git clone --no-checkout https://gitlab.com/bztsrc/posix-uefi.git src/posix-uefi
