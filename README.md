@@ -1,5 +1,7 @@
 # snr_payloads
 
+**This project has been merged with [snr](https://github.com/GlobularOne/snr) as snr payloads.**
+
 Snr_payloads is the default set of payloads that come included with snr. Please see [snr-meta](https://github.com/GlobularOne/snr-meta) for more information.
 
 ## Contacting the author
